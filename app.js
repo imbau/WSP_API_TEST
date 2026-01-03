@@ -1,17 +1,13 @@
-// Import Express.js
 const express = require('express');
+const fetch = require('node-fetch');
 
-// Create an Express app
 const app = express();
-
-// Middleware to parse JSON bodies
 app.use(express.json());
 
-// Set port and verify_token
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
 
-// Route for GET requests
+// GET - Verificación Webhook
 app.get('/', (req, res) => {
   const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
 
@@ -23,15 +19,46 @@ app.get('/', (req, res) => {
   }
 });
 
-// Route for POST requests
-app.post('/', (req, res) => {
-  const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  console.log(`\n\nWebhook received ${timestamp}\n`);
+// POST - Mensajes de WhatsApp
+app.post('/', async (req, res) => {
+  console.log("Webhook recibido");
   console.log(JSON.stringify(req.body, null, 2));
-  res.status(200).end();
+
+  try {
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const message = changes?.value?.messages?.[0];
+
+    if (!message) {
+      return res.sendStatus(200);
+    }
+
+    const from = message.from; // número del usuario
+    const text = message.text?.body; // mensaje que envió
+
+    console.log("Usuario:", from);
+    console.log("Mensaje:", text);
+
+    // 👉 ACA LLAMAMOS A PYTHON
+    const pythonResponse = await fetch("https://python-server-test-uod4.onrender.com/responder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_text: text,
+        to: from
+      })
+    });
+
+    const data = await pythonResponse.json();
+    console.log("Respuesta Python:", data);
+
+  } catch (err) {
+    console.error("Error:", err);
+  }
+
+  res.sendStatus(200);
 });
 
-// Start the server
 app.listen(port, () => {
-  console.log(`\nListening on port ${port}\n`);
+  console.log(`Listening on port ${port}`);
 });
