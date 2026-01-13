@@ -2,9 +2,6 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const conversationStart = new Map();
-const MAX_SECONDS = 5 * 60; // 5 minutos
-
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
 
@@ -36,20 +33,6 @@ app.post('/', async (req, res) => {
     
     const from = message.from;
     const text = message.text?.body;
-    const timestamp = Number(message.timestamp); // UNIX timestamp
-
-    // ⏱️ CONTROL DE TIEMPO
-    if (!conversationStart.has(from)) {
-      conversationStart.set(from, timestamp);
-    }
-    
-    const start = conversationStart.get(from);
-    const now = Math.floor(Date.now() / 1000);
-    const expired = (now - start) > MAX_SECONDS;
-    
-    console.log("Inicio conversación:", start);
-    console.log("Ahora:", now);
-    console.log("Expirada:", expired);
     
     console.log("Usuario:", from);
     console.log("Mensaje:", text);
@@ -60,8 +43,7 @@ app.post('/', async (req, res) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_text: text,
-        user_number: from,
-        expired: expired
+        user_number: from
       })
     });
     
